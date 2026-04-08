@@ -69,6 +69,9 @@ class APIState(BaseModel):
     remaining_escalations: int
     cumulative_reward: float
     episode_id: Optional[str] = None
+    step_count: int = 0
+    max_steps: int = 0
+    done: bool = False
 
 
 class OpenEnvAdapter:
@@ -95,6 +98,9 @@ class OpenEnvAdapter:
     def _state(self) -> APIState:
         data = _normalize_obj(self._env.state())
         data.setdefault("episode_id", self._current_episode_id())
+        data.setdefault("step_count", int(getattr(self._env, "_step_count", 0)))
+        data.setdefault("max_steps", int(getattr(self._env, "_max_steps", 0)))
+        data.setdefault("done", bool(getattr(self._env, "_done", False)))
         return APIState.model_validate(data)
 
     @property
