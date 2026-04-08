@@ -5,7 +5,7 @@ from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from fastapi.responses import RedirectResponse, Response
 from openenv.core.env_server import create_app
 from pydantic import BaseModel, Field
@@ -68,6 +68,7 @@ class APIState(BaseModel):
     items_left: int
     remaining_escalations: int
     cumulative_reward: float
+    episode_id: Optional[str] = None
 
 
 class OpenEnvAdapter:
@@ -83,8 +84,18 @@ class OpenEnvAdapter:
         payload = action.model_dump(exclude_none=True)
         return _observation_to_api(self._env.step(payload))
 
+    def _current_episode_id(self) -> Optional[str]:
+        current_episode = getattr(self._env, "_current_episode", None)
+        if isinstance(current_episode, dict):
+            raw = current_episode.get("episode_id")
+            if raw is not None:
+                return str(raw)
+        return None
+
     def _state(self) -> APIState:
-        return _state_to_api(self._env.state())
+        data = _normalize_obj(self._env.state())
+        data.setdefault("episode_id", self._current_episode_id())
+        return APIState.model_validate(data)
 
     @property
     def state(self) -> APIState:
@@ -228,6 +239,28 @@ def _patch_openapi_examples(app_instance: FastAPI) -> None:
 
 
 _patch_openapi_examples(app)
+
+
+def _patch_reset_endpoint(app_instance: FastAPI) -> None:
+    """Replace OpenEnv default /reset endpoint so it accepts {} and no action payload."""
+    routes_to_keep = []
+    for route in app_instance.router.routes:
+        path = getattr(route, "path", None)
+        methods = set(getattr(route, "methods", set()) or set())
+        if path == "/reset" and "POST" in methods:
+            continue
+        routes_to_keep.append(route)
+    app_instance.router.routes = routes_to_keep
+
+    @app_instance.post("/reset", response_model=APIObservation)
+    async def reset_environment(
+        _payload: Dict[str, Any] | None = Body(default=None),
+    ) -> APIObservation:
+        env = create_environment()
+        return env.reset()
+
+
+_patch_reset_endpoint(app)
 
 
 def _patch_state_endpoint(app_instance: FastAPI) -> None:
