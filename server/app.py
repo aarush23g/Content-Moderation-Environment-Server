@@ -15,11 +15,12 @@ from server.environment import ModerationEnvironment
 ENV_NAME = "content_moderation_policy_env"
 DEFAULT_EPISODES_PATH = "data/episodes.json"
 DEFAULT_POLICIES_PATH = "data/policies.json"
+SUPPORTED_TASKS = {"easy", "medium", "hard"}
 _ENV_SINGLETON: "OpenEnvAdapter | None" = None
 
 
 class APIAction(BaseModel):
-    type: str
+    type: Optional[str] = None
     decision: Optional[str] = None
     policy_label: Optional[str] = None
     confidence: Optional[float] = None
@@ -28,6 +29,7 @@ class APIAction(BaseModel):
     query: Optional[str] = None
     policy_id: Optional[str] = None
     text: Optional[str] = None
+    task_id: Optional[str] = None
 
 
 class APIPost(BaseModel):
@@ -74,6 +76,19 @@ class APIState(BaseModel):
     done: bool = False
 
 
+class APIStepResponse(BaseModel):
+    observation: APIObservation
+    reward: float
+    done: bool
+
+
+def _normalize_task_id(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    token = str(value).strip().lower()
+    return token if token in SUPPORTED_TASKS else None
+
+
 class OpenEnvAdapter:
     """Pydantic-facing wrapper around the dataclass-based moderation environment."""
 
@@ -85,7 +100,12 @@ class OpenEnvAdapter:
 
     def step(self, action: APIAction) -> APIObservation:
         payload = action.model_dump(exclude_none=True)
+        payload.pop("task_id", None)
         return _observation_to_api(self._env.step(payload))
+
+    @property
+    def task_id(self) -> str:
+        return str(getattr(self._env, "_task_id", "easy"))
 
     def _current_episode_id(self) -> Optional[str]:
         current_episode = getattr(self._env, "_current_episode", None)
@@ -108,9 +128,7 @@ class OpenEnvAdapter:
         return self._state()
 
     def close(self) -> None:
-        # OpenEnv's HTTP helper closes environment objects after each request.
-        # Keep this as a no-op so a singleton adapter can preserve episode state
-        # across reset -> step -> state HTTP calls.
+        # Keep episode state across reset -> step -> state calls.
         return None
 
     def get_metadata(self) -> Dict[str, Any]:
@@ -163,14 +181,22 @@ def _normalize_obj(value: Any) -> Dict[str, Any]:
     return {}
 
 
-def create_environment() -> OpenEnvAdapter:
+def create_environment(
+    task_id: Optional[str] = None,
+    force_recreate: bool = False,
+) -> OpenEnvAdapter:
     global _ENV_SINGLETON
-    if _ENV_SINGLETON is not None:
-        return _ENV_SINGLETON
+
+    normalized_task = _normalize_task_id(task_id)
+
+    if _ENV_SINGLETON is not None and not force_recreate:
+        if normalized_task is None or _ENV_SINGLETON.task_id == normalized_task:
+            return _ENV_SINGLETON
 
     episodes_path = os.getenv("EPISODES_PATH", DEFAULT_EPISODES_PATH)
     policies_path = os.getenv("POLICIES_PATH", DEFAULT_POLICIES_PATH)
     env = ModerationEnvironment(
+        task_id=normalized_task,
         episodes_path=episodes_path,
         policies_path=policies_path,
     )
@@ -187,7 +213,7 @@ app: FastAPI = create_app(
 
 
 def _patch_openapi_examples(app_instance: FastAPI) -> None:
-    """Replace generic OpenEnv examples with environment-specific /step examples."""
+    """Replace generic OpenEnv examples with environment-specific examples."""
 
     original_openapi = app_instance.openapi
 
@@ -205,7 +231,7 @@ def _patch_openapi_examples(app_instance: FastAPI) -> None:
             .get("application/json", {})
         )
         if isinstance(reset_content, dict):
-            reset_content["example"] = {}
+            reset_content["example"] = {"task_id": "hard"}
 
         step_post = paths.get("/step", {}).get("post", {})
         step_content = (
@@ -215,24 +241,39 @@ def _patch_openapi_examples(app_instance: FastAPI) -> None:
         )
         if isinstance(step_content, dict):
             step_content["examples"] = {
-                "tool_get_policy_detail": {
-                    "summary": "Tool action",
+                "hard_tool_translate": {
+                    "summary": "Switch to hard and translate first",
                     "value": {
                         "action": {
-                            "type": "get_policy_detail",
-                            "policy_id": "OBVIOUS_SPAM",
+                            "type": "translate_to_english",
+                            "text": "Maal chahiye? g@nja p@cket DM karo, cash only.",
+                            "task_id": "hard",
                         }
                     },
                 },
-                "submit_decision": {
-                    "summary": "Primary moderation decision",
+                "medium_submit_decision": {
+                    "summary": "Switch to medium and decide",
+                    "value": {
+                        "action": {
+                            "type": "submit_decision",
+                            "decision": "allow",
+                            "policy_label": "safe",
+                            "confidence": 0.75,
+                            "rationale": "This appears to be a moderation note quoting harmful language, not endorsing it.",
+                            "task_id": "medium",
+                        }
+                    },
+                },
+                "easy_submit_decision": {
+                    "summary": "Switch to easy and decide",
                     "value": {
                         "action": {
                             "type": "submit_decision",
                             "decision": "block",
-                            "policy_label": "spam",
-                            "confidence": 0.75,
-                            "rationale": "repeated promo and suspicious link pattern",
+                            "policy_label": "sexual",
+                            "confidence": 0.95,
+                            "rationale": "Post is soliciting an illegal drug sale and should be blocked.",
+                            "task_id": "easy",
                         }
                     },
                 },
@@ -248,7 +289,7 @@ _patch_openapi_examples(app)
 
 
 def _patch_reset_endpoint(app_instance: FastAPI) -> None:
-    """Replace OpenEnv default /reset endpoint so it accepts {} and no action payload."""
+    """Replace OpenEnv default /reset endpoint so it accepts {} or {'task_id': ...}."""
     routes_to_keep = []
     for route in app_instance.router.routes:
         path = getattr(route, "path", None)
@@ -260,13 +301,68 @@ def _patch_reset_endpoint(app_instance: FastAPI) -> None:
 
     @app_instance.post("/reset", response_model=APIObservation)
     async def reset_environment(
-        _payload: Dict[str, Any] | None = Body(default=None),
+        payload: Dict[str, Any] | None = Body(default=None),
     ) -> APIObservation:
-        env = create_environment()
+        body = payload or {}
+        requested_task = _normalize_task_id(body.get("task_id"))
+
+        env = create_environment(
+            task_id=requested_task,
+            force_recreate=bool(requested_task),
+        )
         return env.reset()
 
 
 _patch_reset_endpoint(app)
+
+
+def _patch_step_endpoint(app_instance: FastAPI) -> None:
+    """Replace OpenEnv default /step endpoint so task switching works from the Playground."""
+    routes_to_keep = []
+    for route in app_instance.router.routes:
+        path = getattr(route, "path", None)
+        methods = set(getattr(route, "methods", set()) or set())
+        if path == "/step" and "POST" in methods:
+            continue
+        routes_to_keep.append(route)
+    app_instance.router.routes = routes_to_keep
+
+    @app_instance.post("/step", response_model=APIStepResponse)
+    async def step_environment(
+        payload: Dict[str, Any] = Body(...),
+    ) -> APIStepResponse:
+        body = payload or {}
+        action_payload = body.get("action", {})
+        if not isinstance(action_payload, dict):
+            action_payload = {}
+
+        requested_task = _normalize_task_id(action_payload.get("task_id"))
+        force_recreate = bool(
+            requested_task
+            and (_ENV_SINGLETON is None or _ENV_SINGLETON.task_id != requested_task)
+        )
+
+        env = create_environment(
+            task_id=requested_task,
+            force_recreate=force_recreate,
+        )
+
+        # If a new task was selected or no episode has started yet, auto-reset first.
+        current_state = env.state
+        if force_recreate or current_state.episode_id is None:
+            env.reset()
+
+        action = APIAction.model_validate(action_payload)
+        observation = env.step(action)
+
+        return APIStepResponse(
+            observation=observation,
+            reward=observation.reward,
+            done=observation.done,
+        )
+
+
+_patch_step_endpoint(app)
 
 
 def _patch_state_endpoint(app_instance: FastAPI) -> None:
