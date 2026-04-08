@@ -1,19 +1,3 @@
----
-title: Content Moderation Environment Server
-emoji: shield
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
-app_port: 8000
-base_path: /web
-tags:
-  - openenv
-  - content-moderation
-  - reinforcement-learning
-  - fastapi
----
-
 # Content Moderation Policy Compliance Environment (OpenEnv 0.2.x)
 
 An OpenEnv environment where an agent moderates sequences of posts under a limited escalation budget and risk-sensitive rewards.
