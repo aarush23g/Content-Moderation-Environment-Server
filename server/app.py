@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse, Response
 from openenv.core.env_server import create_app
 from pydantic import BaseModel, Field
 
@@ -123,17 +124,14 @@ class OpenEnvAdapter:
         return self.step(action)
 
 
-
 def _observation_to_api(observation: Any) -> APIObservation:
     data = _normalize_obj(observation)
     return APIObservation.model_validate(data)
 
 
-
 def _state_to_api(state_obj: Any) -> APIState:
     data = _normalize_obj(state_obj)
     return APIState.model_validate(data)
-
 
 
 def _normalize_obj(value: Any) -> Dict[str, Any]:
@@ -146,7 +144,6 @@ def _normalize_obj(value: Any) -> Dict[str, Any]:
     if hasattr(value, "__dict__"):
         return dict(value.__dict__)
     return {}
-
 
 
 def create_environment() -> OpenEnvAdapter:
@@ -170,7 +167,6 @@ app: FastAPI = create_app(
     APIObservation,
     env_name=ENV_NAME,
 )
-
 
 
 def _patch_openapi_examples(app_instance: FastAPI) -> None:
@@ -252,6 +248,21 @@ def _patch_state_endpoint(app_instance: FastAPI) -> None:
 
 
 _patch_state_endpoint(app)
+
+
+@app.get("/", include_in_schema=False)
+async def root() -> RedirectResponse:
+    return RedirectResponse(url="/web")
+
+
+@app.get("/web", include_in_schema=False)
+async def web() -> RedirectResponse:
+    return RedirectResponse(url="/docs")
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon() -> Response:
+    return Response(status_code=204)
 
 
 def main() -> None:
