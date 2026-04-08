@@ -1,0 +1,524 @@
+[
+  {
+    "episode_id": "easy_001",
+    "task_id": "easy",
+    "post": {
+      "id": "p_e_001",
+      "text": "Fresh stash available tonight. DM to buy.",
+      "language": "en"
+    },
+    "translated_text_en": "Fresh stash available tonight. DM to buy.",
+    "policy_cards": ["DRUG_SALES", "OBVIOUS_SPAM", "HATE_HARASSMENT"],
+    "metadata": {
+      "account_age_days": 12,
+      "prior_violations": 2,
+      "is_verified": false,
+      "country": "US",
+      "platform": "forum",
+      "reports_count": 6
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["DRUG_SALES"],
+    "gold_severity": 3,
+    "rationale_keywords": ["sale_intent", "direct_contact", "illegal_drugs"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Clear direct drug sale signal."
+  },
+  {
+    "episode_id": "easy_002",
+    "task_id": "easy",
+    "post": {
+      "id": "p_e_002",
+      "text": "Meet at the gate and attack that rival crew tonight.",
+      "language": "en"
+    },
+    "translated_text_en": "Meet at the gate and attack that rival crew tonight.",
+    "policy_cards": ["VIOLENCE_INCITEMENT", "HATE_HARASSMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 40,
+      "prior_violations": 1,
+      "is_verified": false,
+      "country": "GB",
+      "platform": "microblog",
+      "reports_count": 8
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["VIOLENCE_INCITEMENT"],
+    "gold_severity": 3,
+    "rationale_keywords": ["call_to_attack", "group_target", "time_reference"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Explicit incitement with action language."
+  },
+  {
+    "episode_id": "easy_003",
+    "task_id": "easy",
+    "post": {
+      "id": "p_e_003",
+      "text": "WIN FAST CASH!!! Click tiny-link now and repost to 20 groups.",
+      "language": "en"
+    },
+    "translated_text_en": "WIN FAST CASH!!! Click tiny-link now and repost to 20 groups.",
+    "policy_cards": ["OBVIOUS_SPAM", "DRUG_SALES", "HATE_HARASSMENT"],
+    "metadata": {
+      "account_age_days": 2,
+      "prior_violations": 3,
+      "is_verified": false,
+      "country": "IN",
+      "platform": "community",
+      "reports_count": 21
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["OBVIOUS_SPAM"],
+    "gold_severity": 2,
+    "rationale_keywords": ["mass_repost", "deceptive_promo", "spam_pattern"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Classic repeated scammy spam."
+  },
+  {
+    "episode_id": "easy_004",
+    "task_id": "easy",
+    "post": {
+      "id": "p_e_004",
+      "text": "People from that community are filthy and should be pushed out.",
+      "language": "en"
+    },
+    "translated_text_en": "People from that community are filthy and should be pushed out.",
+    "policy_cards": ["HATE_HARASSMENT", "VIOLENCE_INCITEMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 300,
+      "prior_violations": 0,
+      "is_verified": true,
+      "country": "US",
+      "platform": "social",
+      "reports_count": 11
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["HATE_HARASSMENT"],
+    "gold_severity": 3,
+    "rationale_keywords": ["dehumanizing_language", "group_targeting", "expulsion_call"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Direct hateful targeting."
+  },
+  {
+    "episode_id": "easy_005",
+    "task_id": "easy",
+    "post": {
+      "id": "p_e_005",
+      "text": "Uploading close-up injury photos from the crash for shock value.",
+      "language": "en"
+    },
+    "translated_text_en": "Uploading close-up injury photos from the crash for shock value.",
+    "policy_cards": ["GRAPHIC_CONTENT", "VIOLENCE_INCITEMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 65,
+      "prior_violations": 1,
+      "is_verified": false,
+      "country": "CA",
+      "platform": "imageboard",
+      "reports_count": 7
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["GRAPHIC_CONTENT"],
+    "gold_severity": 2,
+    "rationale_keywords": ["injury_imagery", "shock_intent", "graphic_focus"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Non-educational graphic injury intent."
+  },
+  {
+    "episode_id": "easy_006",
+    "task_id": "easy",
+    "post": {
+      "id": "p_e_006",
+      "text": "Daily promo again: use my referral code in every thread for bonus coins.",
+      "language": "en"
+    },
+    "translated_text_en": "Daily promo again: use my referral code in every thread for bonus coins.",
+    "policy_cards": ["OBVIOUS_SPAM", "DRUG_SALES", "GRAPHIC_CONTENT"],
+    "metadata": {
+      "account_age_days": 120,
+      "prior_violations": 0,
+      "is_verified": false,
+      "country": "PH",
+      "platform": "forum",
+      "reports_count": 4
+    },
+    "gold_decision": "REDUCE_REACH",
+    "gold_policy_ids": ["OBVIOUS_SPAM"],
+    "gold_severity": 1,
+    "rationale_keywords": ["repetitive_promo", "low_harm", "referral_push"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Spammy but lower-severity promo."
+  },
+  {
+    "episode_id": "medium_001",
+    "task_id": "medium",
+    "post": {
+      "id": "p_m_001",
+      "text": "Moderator note: the phrase \"those migrants are animals\" is hate speech and must be removed.",
+      "language": "en"
+    },
+    "translated_text_en": "Moderator note: the phrase \"those migrants are animals\" is hate speech and must be removed.",
+    "policy_cards": ["HATE_HARASSMENT", "VIOLENCE_INCITEMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 980,
+      "prior_violations": 0,
+      "is_verified": true,
+      "country": "DE",
+      "platform": "forum",
+      "reports_count": 0
+    },
+    "gold_decision": "ALLOW",
+    "gold_policy_ids": [],
+    "gold_severity": 1,
+    "rationale_keywords": ["quoted_context", "moderation_discussion", "non_endorsement"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Contains hateful quote in condemning context."
+  },
+  {
+    "episode_id": "medium_002",
+    "task_id": "medium",
+    "post": {
+      "id": "p_m_002",
+      "text": "We need to kill the competition in Q3 sales.",
+      "language": "en"
+    },
+    "translated_text_en": "We need to kill the competition in Q3 sales.",
+    "policy_cards": ["VIOLENCE_INCITEMENT", "OBVIOUS_SPAM", "HATE_HARASSMENT"],
+    "metadata": {
+      "account_age_days": 1500,
+      "prior_violations": 0,
+      "is_verified": true,
+      "country": "US",
+      "platform": "workstream",
+      "reports_count": 1
+    },
+    "gold_decision": "ALLOW",
+    "gold_policy_ids": [],
+    "gold_severity": 1,
+    "rationale_keywords": ["idiom", "non_literal", "business_context"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Violence-like words used as common idiom."
+  },
+  {
+    "episode_id": "medium_003",
+    "task_id": "medium",
+    "post": {
+      "id": "p_m_003",
+      "text": "Weekend sale still live, same store link posted in many groups for visibility.",
+      "language": "en"
+    },
+    "translated_text_en": "Weekend sale still live, same store link posted in many groups for visibility.",
+    "policy_cards": ["OBVIOUS_SPAM", "DRUG_SALES", "HATE_HARASSMENT"],
+    "metadata": {
+      "account_age_days": 5,
+      "prior_violations": 4,
+      "is_verified": false,
+      "country": "IN",
+      "platform": "community",
+      "reports_count": 18
+    },
+    "gold_decision": "REDUCE_REACH",
+    "gold_policy_ids": ["OBVIOUS_SPAM"],
+    "gold_severity": 2,
+    "rationale_keywords": ["cross_posting", "repeat_link", "distribution_abuse"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Commercial but high-frequency repetitive posting."
+  },
+  {
+    "episode_id": "medium_004",
+    "task_id": "medium",
+    "post": {
+      "id": "p_m_004",
+      "text": "Thread on how drug peddlers target teens; report dealers and avoid substance use.",
+      "language": "en"
+    },
+    "translated_text_en": "Thread on how drug peddlers target teens; report dealers and avoid substance use.",
+    "policy_cards": ["DRUG_SALES", "HATE_HARASSMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 420,
+      "prior_violations": 0,
+      "is_verified": true,
+      "country": "AU",
+      "platform": "social",
+      "reports_count": 2
+    },
+    "gold_decision": "ADD_LABEL",
+    "gold_policy_ids": ["DRUG_SALES"],
+    "gold_severity": 1,
+    "rationale_keywords": ["educational_context", "drug_reference", "preventive_message"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Mentions drugs without sale intent."
+  },
+  {
+    "episode_id": "medium_005",
+    "task_id": "medium",
+    "post": {
+      "id": "p_m_005",
+      "text": "Everyone flood this teacher's inbox with insults until he deletes his account.",
+      "language": "en"
+    },
+    "translated_text_en": "Everyone flood this teacher's inbox with insults until he deletes his account.",
+    "policy_cards": ["HATE_HARASSMENT", "VIOLENCE_INCITEMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 210,
+      "prior_violations": 2,
+      "is_verified": false,
+      "country": "US",
+      "platform": "social",
+      "reports_count": 9
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["HATE_HARASSMENT"],
+    "gold_severity": 2,
+    "rationale_keywords": ["coordinated_harassment", "targeted_abuse", "dogpile_call"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Direct call for coordinated harassment."
+  },
+  {
+    "episode_id": "medium_006",
+    "task_id": "medium",
+    "post": {
+      "id": "p_m_006",
+      "text": "If that scammer comes back, someone should teach him a lesson.",
+      "language": "en"
+    },
+    "translated_text_en": "If that scammer comes back, someone should teach him a lesson.",
+    "policy_cards": ["VIOLENCE_INCITEMENT", "HATE_HARASSMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 33,
+      "prior_violations": 5,
+      "is_verified": false,
+      "country": "ZA",
+      "platform": "microblog",
+      "reports_count": 13
+    },
+    "gold_decision": "ESCALATE",
+    "gold_policy_ids": ["VIOLENCE_INCITEMENT"],
+    "gold_severity": 2,
+    "rationale_keywords": ["ambiguous_threat", "intent_unclear", "human_review_needed"],
+    "expected_tool_usage": {
+      "should_translate": false,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Borderline threat with implied violence."
+  },
+  {
+    "episode_id": "hard_001",
+    "task_id": "hard",
+    "post": {
+      "id": "p_h_001",
+      "text": "Maal chahiye? g@nja p@cket DM karo, cash only.",
+      "language": "hi-Latn"
+    },
+    "translated_text_en": "Need stuff? DM for cannabis packets, cash only.",
+    "policy_cards": ["DRUG_SALES", "OBVIOUS_SPAM", "VIOLENCE_INCITEMENT"],
+    "metadata": {
+      "account_age_days": 9,
+      "prior_violations": 3,
+      "is_verified": false,
+      "country": "IN",
+      "platform": "chat",
+      "reports_count": 12
+    },
+    "gold_decision": "REMOVE",
+    "gold_policy_ids": ["DRUG_SALES"],
+    "gold_severity": 3,
+    "rationale_keywords": ["obfuscated_terms", "sale_intent", "dm_contact"],
+    "expected_tool_usage": {
+      "should_translate": true,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Hinglish plus symbol obfuscation for sales."
+  },
+  {
+    "episode_id": "hard_002",
+    "task_id": "hard",
+    "post": {
+      "id": "p_h_002",
+      "text": "Is creator ko sab milke zaleel karo, har post par gaali spam karo.",
+      "language": "hi"
+    },
+    "translated_text_en": "Everyone together humiliate this creator, spam abuse on every post.",
+    "policy_cards": ["HATE_HARASSMENT", "OBVIOUS_SPAM", "VIOLENCE_INCITEMENT"],
+    "metadata": {
+      "account_age_days": 70,
+      "prior_violations": 1,
+      "is_verified": false,
+      "country": "IN",
+      "platform": "social",
+      "reports_count": 10
+    },
+    "gold_decision": "ESCALATE",
+    "gold_policy_ids": ["HATE_HARASSMENT"],
+    "gold_severity": 2,
+    "rationale_keywords": ["dogpile_call", "targeted_abuse", "context_sensitive"],
+    "expected_tool_usage": {
+      "should_translate": true,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Coordinated harassment language, borderline severity."
+  },
+  {
+    "episode_id": "hard_003",
+    "task_id": "hard",
+    "post": {
+      "id": "p_h_003",
+      "text": "Debate clip mein kisi ne bola 'maar do', par main is soch ka virodh karta hoon.",
+      "language": "hi-Latn"
+    },
+    "translated_text_en": "In a debate clip someone said 'kill them', but I oppose that mindset.",
+    "policy_cards": ["VIOLENCE_INCITEMENT", "HATE_HARASSMENT", "GRAPHIC_CONTENT"],
+    "metadata": {
+      "account_age_days": 860,
+      "prior_violations": 0,
+      "is_verified": true,
+      "country": "IN",
+      "platform": "video",
+      "reports_count": 1
+    },
+    "gold_decision": "ALLOW",
+    "gold_policy_ids": [],
+    "gold_severity": 1,
+    "rationale_keywords": ["quoted_speech", "explicit_opposition", "no_incitement"],
+    "expected_tool_usage": {
+      "should_translate": true,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Violent quote appears in condemnatory context."
+  },
+  {
+    "episode_id": "hard_004",
+    "task_id": "hard",
+    "post": {
+      "id": "p_h_004",
+      "text": "Fr33 g1ft c@rd link bio m3, 10 grp m share karo pls.",
+      "language": "hi-Latn"
+    },
+    "translated_text_en": "Free gift card link in bio, please share in 10 groups.",
+    "policy_cards": ["OBVIOUS_SPAM", "DRUG_SALES", "HATE_HARASSMENT"],
+    "metadata": {
+      "account_age_days": 3,
+      "prior_violations": 2,
+      "is_verified": false,
+      "country": "IN",
+      "platform": "community",
+      "reports_count": 15
+    },
+    "gold_decision": "REDUCE_REACH",
+    "gold_policy_ids": ["OBVIOUS_SPAM"],
+    "gold_severity": 2,
+    "rationale_keywords": ["obfuscated_spam", "viral_prompt", "suspicious_promo"],
+    "expected_tool_usage": {
+      "should_translate": true,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Obfuscated chain-promo spam."
+  },
+  {
+    "episode_id": "hard_005",
+    "task_id": "hard",
+    "post": {
+      "id": "p_h_005",
+      "text": "Sadak durghatna ki photo hai, halka khoon dikh sakta hai. Viewer discretion.",
+      "language": "hi"
+    },
+    "translated_text_en": "This is a road accident photo, light blood may be visible. Viewer discretion.",
+    "policy_cards": ["GRAPHIC_CONTENT", "VIOLENCE_INCITEMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 520,
+      "prior_violations": 0,
+      "is_verified": true,
+      "country": "IN",
+      "platform": "imageboard",
+      "reports_count": 3
+    },
+    "gold_decision": "ADD_LABEL",
+    "gold_policy_ids": ["GRAPHIC_CONTENT"],
+    "gold_severity": 1,
+    "rationale_keywords": ["mild_injury_reference", "warning_present", "limited_graphicness"],
+    "expected_tool_usage": {
+      "should_translate": true,
+      "should_lookup_cases": false,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Borderline graphic; label is sufficient."
+  },
+  {
+    "episode_id": "hard_006",
+    "task_id": "hard",
+    "post": {
+      "id": "p_h_006",
+      "text": "Un logo ko area se hatao, saaf karo mohalla.",
+      "language": "hi-Latn"
+    },
+    "translated_text_en": "Drive those people out of the area, clean the neighborhood.",
+    "policy_cards": ["HATE_HARASSMENT", "VIOLENCE_INCITEMENT", "OBVIOUS_SPAM"],
+    "metadata": {
+      "account_age_days": 46,
+      "prior_violations": 2,
+      "is_verified": false,
+      "country": "IN",
+      "platform": "microblog",
+      "reports_count": 14
+    },
+    "gold_decision": "ESCALATE",
+    "gold_policy_ids": ["HATE_HARASSMENT", "VIOLENCE_INCITEMENT"],
+    "gold_severity": 3,
+    "rationale_keywords": ["coded_targeting", "expulsion_language", "possible_incitement"],
+    "expected_tool_usage": {
+      "should_translate": true,
+      "should_lookup_cases": true,
+      "should_read_policy": true
+    },
+    "notes_for_grader": "Coded group-targeting with removal rhetoric."
+  }
+]

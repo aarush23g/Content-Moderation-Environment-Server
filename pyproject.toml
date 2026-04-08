@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openenv-content-moderation-openenv-r1"
+version = "0.1.0"
+description = "Deterministic text-only content moderation environment compatible with OpenEnv 0.2.x."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "openenv-core[core]>=0.2.3,<0.3",
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    "openai>=2.7,<3.0",
+    "pydantic>=2.8,<3.0",
+    "httpx>=0.28,<1.0",
+    "python-dotenv>=1.0,<2.0",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9.0",
+]
+
+[tool.setuptools]
+include-package-data = true
+packages = ["server"]
+py-modules = ["client", "models", "inference"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

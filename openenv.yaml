@@ -1,0 +1,146 @@
+spec_version: 1
+name: content_moderation_policy_env
+version: 0.2.0
+description: Deterministic budgeted content moderation where agents choose allow, block, or escalate under a limited escalation budget.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+tags:
+  - openenv
+  - content-moderation
+  - reinforcement-learning
+
+observation_space:
+  type: object
+  additionalProperties: false
+  required:
+    - post
+    - metadata
+    - episode
+  properties:
+    post:
+      type: object
+      additionalProperties: false
+      required:
+        - content_id
+        - text
+        - context
+        - language
+        - platform
+        - difficulty
+      properties:
+        content_id:
+          type: string
+        text:
+          type: string
+        context:
+          type: string
+        language:
+          type: string
+        platform:
+          type: string
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+    metadata:
+      type: object
+      additionalProperties: false
+      required:
+        - difficulty
+        - language
+        - platform
+      properties:
+        difficulty:
+          type: string
+          enum: [easy, medium, hard]
+        language:
+          type: string
+        platform:
+          type: string
+    episode:
+      type: object
+      additionalProperties: false
+      required:
+        - task_id
+        - current_index
+        - items_left
+        - remaining_escalations
+        - cumulative_reward
+      properties:
+        task_id:
+          type: string
+          enum: [easy, medium, hard]
+        current_index:
+          type: integer
+          minimum: 0
+        items_left:
+          type: integer
+          minimum: 0
+        remaining_escalations:
+          type: integer
+          minimum: 0
+        cumulative_reward:
+          type: number
+    reward:
+      type: number
+    done:
+      type: boolean
+    info:
+      type: object
+
+action_space:
+  type: object
+  additionalProperties: false
+  required:
+    - type
+  properties:
+    type:
+      type: string
+      enum: [submit_decision, lookup_similar_cases, get_policy_detail, translate_to_english]
+    decision:
+      type: string
+      enum: [allow, block, escalate]
+    policy_label:
+      type: string
+      enum: [safe, spam, hate, violence, sexual]
+    confidence:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+    rationale:
+      type: string
+    query:
+      type: string
+    policy_id:
+      type: string
+    text:
+      type: string
+
+endpoints:
+  - method: GET
+    path: /health
+  - method: POST
+    path: /reset
+  - method: POST
+    path: /step
+  - method: GET
+    path: /state
+  - method: GET
+    path: /metadata
+  - method: GET
+    path: /schema
+
+tasks:
+  - id: easy
+    description: Sequential episodes with low ambiguity and clear policy boundaries where escalation is rarely needed.
+    num_items: 6
+    max_steps: 12
+  - id: medium
+    description: Sequential episodes with moderate ambiguity and context-dependent risk requiring selective escalation.
+    num_items: 6
+    max_steps: 12
+  - id: hard
+    description: Sequential episodes with high ambiguity or high-risk content where escalation budget use is strategically important.
+    num_items: 6
+    max_steps: 12

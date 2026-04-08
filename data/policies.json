@@ -1,0 +1,137 @@
+[
+  {
+    "id": "DRUG_SALES",
+    "short_title": "Drug Sales",
+    "short_desc": "Content that sells or trades illegal drugs.",
+    "long_desc": "Do not allow posts that offer, request, broker, or coordinate illegal drug sales. This includes price lists, delivery details, payment instructions, and direct contact for deals.",
+    "severity_guidance": {
+      "1": "Mentions drugs in a neutral context, no sale intent.",
+      "2": "Suggests buying or selling but details are limited.",
+      "3": "Clear sales intent with contact, price, quantity, or delivery details."
+    },
+    "examples_allow": [
+      "I am in recovery from opioid use and sharing my story.",
+      "News report: police seized meth during a traffic stop."
+    ],
+    "examples_remove": [
+      "DM me for coke, same-day drop, cash only.",
+      "Selling oxy pills tonight, menu and prices in inbox."
+    ],
+    "tags": [
+      "drugs",
+      "narcotics",
+      "dealer",
+      "sale",
+      "dm",
+      "price"
+    ]
+  },
+  {
+    "id": "VIOLENCE_INCITEMENT",
+    "short_title": "Violence Incitement",
+    "short_desc": "Content that encourages or organizes violence.",
+    "long_desc": "Do not allow posts that call for physical harm, revenge attacks, or organized violent action against people or groups. Plans, targets, and timing increase severity.",
+    "severity_guidance": {
+      "1": "Angry language but no direct call to harm.",
+      "2": "Implied threat or encouragement to hurt someone.",
+      "3": "Explicit call, plan, or coordination for violent acts."
+    },
+    "examples_allow": [
+      "Violence is never the answer; report the incident instead.",
+      "Self-defense classes can help people feel safer."
+    ],
+    "examples_remove": [
+      "Bring bats at 8 PM and smash anyone from that block.",
+      "Find him after work and beat him until he stops talking."
+    ],
+    "tags": [
+      "violence",
+      "attack",
+      "harm",
+      "threat",
+      "riot",
+      "revenge"
+    ]
+  },
+  {
+    "id": "GRAPHIC_CONTENT",
+    "short_title": "Graphic Content",
+    "short_desc": "Content with gore or explicit injury details.",
+    "long_desc": "Do not allow posts that show or describe extreme gore, dismemberment, or severe bodily injury in a shocking way. Educational or medical context may lower severity.",
+    "severity_guidance": {
+      "1": "Mild injury mention without graphic detail.",
+      "2": "Disturbing injury detail but not extreme gore.",
+      "3": "Explicit gore, dismemberment, or intense blood focus."
+    },
+    "examples_allow": [
+      "CW: minor sports injury photo with no blood shown.",
+      "Medical article discussing trauma care in general terms."
+    ],
+    "examples_remove": [
+      "Close-up video of a mutilated body with blood everywhere.",
+      "Photo thread showing severed limbs after the crash."
+    ],
+    "tags": [
+      "gore",
+      "blood",
+      "injury",
+      "dismemberment",
+      "graphic",
+      "shock"
+    ]
+  },
+  {
+    "id": "OBVIOUS_SPAM",
+    "short_title": "Obvious Spam",
+    "short_desc": "Low-value repetitive or scam-like promotion.",
+    "long_desc": "Do not allow clear spam, including repeated posts, fake giveaways, mass unsolicited promotions, and deceptive links meant to farm clicks or money.",
+    "severity_guidance": {
+      "1": "Low-quality promo but limited reach and not deceptive.",
+      "2": "Repeated unsolicited promotion or suspicious claims.",
+      "3": "High-volume spam or clear scam with deceptive links."
+    },
+    "examples_allow": [
+      "We launched a new notebook today: example.com",
+      "One post announcing a local event ticket page."
+    ],
+    "examples_remove": [
+      "WIN $$$ NOW!!! Click this link 10 times and share everywhere.",
+      "Same crypto referral post copied across every comment thread."
+    ],
+    "tags": [
+      "spam",
+      "scam",
+      "giveaway",
+      "referral",
+      "clickbait",
+      "unsolicited"
+    ]
+  },
+  {
+    "id": "HATE_HARASSMENT",
+    "short_title": "Hate and Harassment",
+    "short_desc": "Content targeting people with abuse or hate.",
+    "long_desc": "Do not allow slurs, dehumanizing language, or targeted harassment against protected groups or individuals. Repeated attacks, threats, or humiliating dogpiles increase severity.",
+    "severity_guidance": {
+      "1": "Rude tone without slurs or protected-group targeting.",
+      "2": "Targeted insult or degrading language toward a person/group.",
+      "3": "Severe hate speech, slurs, or coordinated harassment."
+    },
+    "examples_allow": [
+      "We should challenge hateful ideas without attacking people.",
+      "Research paper on the impact of online harassment."
+    ],
+    "examples_remove": [
+      "Those people are animals and should be pushed out.",
+      "Everyone pile on this user and make her quit the platform."
+    ],
+    "tags": [
+      "hate",
+      "harassment",
+      "slur",
+      "abuse",
+      "targeted",
+      "bullying"
+    ]
+  }
+]
