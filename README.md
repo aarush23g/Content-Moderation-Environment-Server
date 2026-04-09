@@ -11,7 +11,7 @@ tags:
   - openenv
   - content-moderation
   - reinforcement-learning
-  - fastapi
+  - fastapif
 ---
 
 # Content Moderation Policy Compliance Environment (OpenEnv 0.2.x)
@@ -242,6 +242,8 @@ Expected environment variables:
 - `HF_TOKEN` or `API_KEY`
 - `IMAGE_NAME` (fallback: `LOCAL_IMAGE_NAME`)
 - `CONTENT_MODERATION_TASK`
+  - values: `easy`, `medium`, `hard`, or `all`
+  - default behavior in `inference.py`: `all` (cycles tasks for multi-task grading)
 - `CONTENT_MODERATION_BENCHMARK`
 - `INFERENCE_EPISODES` (optional, default `5`, computes mean score across episodes)
 - `INFERENCE_MAX_STEPS` (optional, default `64`, max steps per episode)
@@ -250,6 +252,7 @@ Expected stdout trace format:
 - `[START] ...`
 - `[STEP] ...`
 - `[END] ...`
+  - `score` is global mean normalized score in `(0,1)`, and `rewards` contains normalized grader-style values (per-task means when running `all`).
 
 ## Testing
 
