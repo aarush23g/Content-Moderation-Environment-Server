@@ -60,8 +60,12 @@ class ModerationEnvironment(Environment[Action, Observation, State]):
         self._episodes_path = str(Path(episodes_path))
         self._policies_path = policies_path  # reserved for API compatibility
 
-        requested_task = str(task_id or os.getenv("CONTENT_MODERATION_TASK") or "easy").strip().lower()
+        env_task_raw = str(os.getenv("CONTENT_MODERATION_TASK") or "").strip().lower()
+        requested_task = str(task_id or env_task_raw or "easy").strip().lower()
         self._task_id = requested_task if requested_task in SUPPORTED_TASKS else "easy"
+        self._fixed_task = bool(
+            task_id is not None or (env_task_raw in SUPPORTED_TASKS)
+        )
 
         raw_by_task = load_episodes(self._episodes_path)
         self._task_episodes: Dict[str, List[Dict[str, Any]]] = self._build_task_episodes(raw_by_task)
@@ -71,6 +75,11 @@ class ModerationEnvironment(Environment[Action, Observation, State]):
             if not non_empty:
                 raise ValueError("No episodes available in dataset.")
             self._task_id = non_empty[0]
+
+        self._task_cycle: List[str] = [
+            task for task in SUPPORTED_TASKS if self._task_episodes.get(task)
+        ]
+        self._task_cycle_cursor: int = 0
 
         self._reward_calculator = RewardCalculator()
 
@@ -93,15 +102,48 @@ class ModerationEnvironment(Environment[Action, Observation, State]):
         self._tool_history: List[Dict[str, Any]] = []
         self._last_info: Dict[str, Any] = {}
 
-    def reset(self) -> Observation:
+    def reset(
+        self,
+        task_id: Optional[str] = None,
+        episode_id: Optional[str] = None,
+        seed: Optional[int] = None,
+    ) -> Observation:
+        # Optional reset-time task override for OpenEnv evaluators.
+        if task_id is not None:
+            candidate = str(task_id).strip().lower()
+            if candidate in SUPPORTED_TASKS and self._task_episodes.get(candidate):
+                self._task_id = candidate
+        elif not self._fixed_task and self._task_cycle:
+            self._task_id = self._task_cycle[
+                self._task_cycle_cursor % len(self._task_cycle)
+            ]
+            self._task_cycle_cursor += 1
+
         task = self._task_id
         task_episodes = self._task_episodes.get(task, [])
         if not task_episodes:
             raise ValueError(f"No episodes available for task '{task}'.")
 
-        cursor = self._episode_cursor_by_task[task]
-        episode = task_episodes[cursor % len(task_episodes)]
-        self._episode_cursor_by_task[task] = cursor + 1
+        if episode_id is not None:
+            wanted = str(episode_id).strip()
+            matched = next(
+                (
+                    ep
+                    for ep in task_episodes
+                    if str(ep.get("episode_id", "")).strip() == wanted
+                ),
+                None,
+            )
+            if matched is not None:
+                episode = matched
+            else:
+                cursor = self._episode_cursor_by_task[task]
+                episode = task_episodes[cursor % len(task_episodes)]
+                self._episode_cursor_by_task[task] = cursor + 1
+        else:
+            cursor = self._episode_cursor_by_task[task]
+            episode = task_episodes[cursor % len(task_episodes)]
+            self._episode_cursor_by_task[task] = cursor + 1
 
         self._current_task_id = task
         self._current_episode = episode
