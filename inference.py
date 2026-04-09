@@ -10,6 +10,7 @@ from openai import OpenAI
 
 ENV_NAME = "content_moderation_policy_env"
 TASK_LEVELS = {"easy", "medium", "hard"}
+SCORE_EPS = 1e-4
 
 ACTION_JSON_SCHEMA: Dict[str, Any] = {
     "type": "object",
@@ -65,8 +66,8 @@ class RuntimeEnvClient:
 
         return cls(base_url="http://localhost:8000")
 
-    def reset(self) -> Dict[str, Any]:
-        response = self._http.post(f"{self.base_url}/reset", json={})
+    def reset(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        response = self._http.post(f"{self.base_url}/reset", json=payload or {})
         response.raise_for_status()
         return self._to_dict(response.json())
 
@@ -226,10 +227,14 @@ def normalize_score(total_reward: float, num_items: int) -> float:
     min_total = -1.4 * n
     max_total = 1.1 * n
     if max_total <= min_total:
-        return 0.0
+        return SCORE_EPS
 
     score = (total_reward - min_total) / (max_total - min_total)
-    return max(0.0, min(1.0, score))
+    if score <= 0.0:
+        return SCORE_EPS
+    if score >= 1.0:
+        return 1.0 - SCORE_EPS
+    return score
 
 
 def safe_action_to_string(action: Dict[str, Any]) -> str:
@@ -502,6 +507,21 @@ def _infer_task_level(observation: Dict[str, Any], default_task: str) -> str:
     return "easy"
 
 
+def _resolve_requested_tasks(task_value: str) -> List[str]:
+    raw = str(task_value or "").strip().lower()
+    if raw in TASK_LEVELS:
+        return [raw]
+    if raw in {"all", "*", ""}:
+        return ["easy", "medium", "hard"]
+
+    tokens = [token.strip() for token in raw.split(",") if token.strip()]
+    picked: List[str] = []
+    for token in tokens:
+        if token in TASK_LEVELS and token not in picked:
+            picked.append(token)
+    return picked or ["easy", "medium", "hard"]
+
+
 def _infer_remaining_escalations(observation: Dict[str, Any]) -> int:
     episode = _as_dict(observation.get("episode"))
     return max(0, _safe_int(episode.get("remaining_escalations"), 0))
@@ -558,7 +578,7 @@ def _clamp01(value: Any) -> float:
 
 
 def main() -> None:
-    task = os.getenv("CONTENT_MODERATION_TASK", "easy")
+    task = os.getenv("CONTENT_MODERATION_TASK", "all")
     benchmark = os.getenv("CONTENT_MODERATION_BENCHMARK", ENV_NAME)
     model_name = os.getenv("MODEL_NAME", "gpt-4.1-mini")
     api_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or ""
@@ -570,7 +590,8 @@ def main() -> None:
     episodes_to_run = max(1, _safe_int(os.getenv("INFERENCE_EPISODES"), 5))
     max_steps_per_episode = max(1, _safe_int(os.getenv("INFERENCE_MAX_STEPS"), 64))
 
-    log_start(task=task, env_name=benchmark, model=model_name)
+    selected_tasks = _resolve_requested_tasks(task)
+    log_start(task=",".join(selected_tasks), env_name=benchmark, model=model_name)
 
     llm_enabled = bool(api_base_url or api_key)
     llm_client: Optional[OpenAI] = None
@@ -588,11 +609,13 @@ def main() -> None:
     system_prompt = build_system_prompt()
 
     total_steps = 0
-    episode_rewards: List[float] = []
+    episode_raw_rewards: List[float] = []
     episode_scores: List[float] = []
+    task_scores: Dict[str, List[float]] = {task_name: [] for task_name in selected_tasks}
 
     try:
         for episode_index in range(1, episodes_to_run + 1):
+            current_task = selected_tasks[(episode_index - 1) % len(selected_tasks)]
             history: List[Dict[str, Any]] = []
             episode_total_reward = 0.0
             episode_steps = 0
@@ -601,10 +624,15 @@ def main() -> None:
             episode_failed = False
 
             try:
-                reset_result = env_client.reset()
-                observation = _as_dict(reset_result.get("observation"))
-                done = bool(reset_result.get("done", False))
-                last_reward = float(reset_result.get("reward", 0.0) or 0.0)
+                reset_result = env_client.reset({"task_id": current_task})
+                if isinstance(reset_result.get("observation"), dict):
+                    observation = _as_dict(reset_result.get("observation"))
+                    done = bool(reset_result.get("done", False))
+                    last_reward = float(reset_result.get("reward", 0.0) or 0.0)
+                else:
+                    observation = _as_dict(reset_result)
+                    done = bool(observation.get("done", False))
+                    last_reward = float(observation.get("reward", 0.0) or 0.0)
 
                 episode_state = _as_dict(observation.get("episode"))
                 initial_items = max(1, _safe_int(episode_state.get("items_left"), 0))
@@ -621,7 +649,7 @@ def main() -> None:
                         episodes_total=episodes_to_run,
                     )
 
-                    fallback_action = build_fallback_action(observation, default_task=task)
+                    fallback_action = build_fallback_action(observation, default_task=current_task)
                     model_action = get_model_action(
                         client=llm_client,
                         model_name=model_name,
@@ -674,12 +702,13 @@ def main() -> None:
                 )
 
             score_items = max(1, initial_items if initial_items > 0 else episode_steps)
-            episode_score = 0.0 if episode_failed else normalize_score(
+            episode_score = SCORE_EPS if episode_failed else normalize_score(
                 total_reward=episode_total_reward,
                 num_items=score_items,
             )
-            episode_rewards.append(episode_total_reward)
+            episode_raw_rewards.append(episode_total_reward)
             episode_scores.append(episode_score)
+            task_scores.setdefault(current_task, []).append(episode_score)
 
     finally:
         env_client.close()
@@ -688,7 +717,17 @@ def main() -> None:
     mean_score = sum(episode_scores) / episodes_run
     success = mean_score >= 0.5
 
-    log_end(success=success, steps=total_steps, score=mean_score, rewards=episode_rewards)
+    # Keep score as global mean, and expose grader-style normalized values in `rewards`.
+    # When evaluating across tasks, emit per-task mean scores to align with task-level validators.
+    if len(selected_tasks) > 1:
+        rewards_for_end = [
+            sum(task_scores.get(task_name, [SCORE_EPS])) / max(1, len(task_scores.get(task_name, [])))
+            for task_name in selected_tasks
+        ]
+    else:
+        rewards_for_end = list(episode_scores)
+
+    log_end(success=success, steps=total_steps, score=mean_score, rewards=rewards_for_end)
 
 
 if __name__ == "__main__":
