@@ -144,8 +144,15 @@ class OpenEnvAdapter:
     def __init__(self, env: ModerationEnvironment) -> None:
         self._env = env
 
-    def reset(self) -> APIObservation:
-        return _observation_to_api(self._env.reset())
+    def reset(
+        self,
+        seed: Optional[int] = None,
+        episode_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+    ) -> APIObservation:
+        return _observation_to_api(
+            self._env.reset(seed=seed, episode_id=episode_id, task_id=task_id)
+        )
 
     def step(self, action: APIAction) -> APIObservation:
         payload = action.model_dump(exclude_none=True)
