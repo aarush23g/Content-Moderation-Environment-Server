@@ -577,6 +577,16 @@ def _clamp01(value: Any) -> float:
     return val
 
 
+def _episodes_for_task(total_episodes: int, num_tasks: int, task_index: int) -> int:
+    if num_tasks <= 0:
+        return max(1, total_episodes)
+    if total_episodes < num_tasks:
+        return 1
+    base = total_episodes // num_tasks
+    remainder = total_episodes % num_tasks
+    return base + (1 if task_index < remainder else 0)
+
+
 def main() -> None:
     task = os.getenv("CONTENT_MODERATION_TASK", "all")
     benchmark = os.getenv("CONTENT_MODERATION_BENCHMARK", ENV_NAME)
@@ -591,7 +601,6 @@ def main() -> None:
     max_steps_per_episode = max(1, _safe_int(os.getenv("INFERENCE_MAX_STEPS"), 64))
 
     selected_tasks = _resolve_requested_tasks(task)
-    log_start(task=",".join(selected_tasks), env_name=benchmark, model=model_name)
 
     llm_enabled = bool(api_base_url or api_key)
     llm_client: Optional[OpenAI] = None
@@ -608,126 +617,123 @@ def main() -> None:
     env_client = RuntimeEnvClient.create(base_url=env_base_url, image_name=image_name)
     system_prompt = build_system_prompt()
 
-    total_steps = 0
-    episode_raw_rewards: List[float] = []
-    episode_scores: List[float] = []
-    task_scores: Dict[str, List[float]] = {task_name: [] for task_name in selected_tasks}
-
     try:
-        for episode_index in range(1, episodes_to_run + 1):
-            current_task = selected_tasks[(episode_index - 1) % len(selected_tasks)]
-            history: List[Dict[str, Any]] = []
-            episode_total_reward = 0.0
-            episode_steps = 0
-            last_reward = 0.0
-            initial_items = 0
-            episode_failed = False
+        for task_index, current_task in enumerate(selected_tasks):
+            log_start(task=current_task, env_name=benchmark, model=model_name)
 
-            try:
-                reset_result = env_client.reset({"task_id": current_task})
-                if isinstance(reset_result.get("observation"), dict):
-                    observation = _as_dict(reset_result.get("observation"))
-                    done = bool(reset_result.get("done", False))
-                    last_reward = float(reset_result.get("reward", 0.0) or 0.0)
-                else:
-                    observation = _as_dict(reset_result)
-                    done = bool(observation.get("done", False))
-                    last_reward = float(observation.get("reward", 0.0) or 0.0)
-
-                episode_state = _as_dict(observation.get("episode"))
-                initial_items = max(1, _safe_int(episode_state.get("items_left"), 0))
-
-                while not done and episode_steps < max_steps_per_episode:
-                    total_steps += 1
-                    episode_steps += 1
-
-                    user_prompt = build_user_prompt(
-                        observation=observation,
-                        history=history,
-                        last_reward=last_reward,
-                        episode_index=episode_index,
-                        episodes_total=episodes_to_run,
-                    )
-
-                    fallback_action = build_fallback_action(observation, default_task=current_task)
-                    model_action = get_model_action(
-                        client=llm_client,
-                        model_name=model_name,
-                        system_prompt=system_prompt,
-                        user_prompt=user_prompt,
-                        fallback_action=fallback_action,
-                        llm_enabled=llm_enabled,
-                    )
-                    env_action = _to_env_action(model_action)
-
-                    step_result = env_client.step(env_action)
-                    observation = _as_dict(step_result.get("observation"))
-
-                    reward = float(step_result.get("reward", 0.0) or 0.0)
-                    done = bool(step_result.get("done", False))
-                    error = _extract_error(observation)
-
-                    episode_total_reward += reward
-                    last_reward = reward
-
-                    history.append(
-                        {
-                            "decision": model_action.get("decision", ""),
-                            "policy_label": model_action.get("policy_label", ""),
-                            "reward": reward,
-                        }
-                    )
-
-                    log_step(
-                        step=total_steps,
-                        action=safe_action_to_string(env_action),
-                        reward=reward,
-                        done=done,
-                        error=error,
-                    )
-
-            except Exception as exc:
-                episode_failed = True
-                total_steps += 1
-                log_step(
-                    step=total_steps,
-                    action=(
-                        '{"type":"submit_decision","decision":"allow",'
-                        '"policy_label":"safe","confidence":0.5,'
-                        '"rationale":"episode_error_fallback"}'
-                    ),
-                    reward=0.0,
-                    done=True,
-                    error=str(exc),
-                )
-
-            score_items = max(1, initial_items if initial_items > 0 else episode_steps)
-            episode_score = SCORE_EPS if episode_failed else normalize_score(
-                total_reward=episode_total_reward,
-                num_items=score_items,
+            episodes_for_current_task = _episodes_for_task(
+                total_episodes=episodes_to_run,
+                num_tasks=len(selected_tasks),
+                task_index=task_index,
             )
-            episode_raw_rewards.append(episode_total_reward)
-            episode_scores.append(episode_score)
-            task_scores.setdefault(current_task, []).append(episode_score)
+            step_counter = 0
+            episode_scores: List[float] = []
+
+            for episode_index in range(1, episodes_for_current_task + 1):
+                history: List[Dict[str, Any]] = []
+                episode_total_reward = 0.0
+                episode_steps = 0
+                last_reward = 0.0
+                initial_items = 0
+                episode_failed = False
+
+                try:
+                    reset_result = env_client.reset({"task_id": current_task})
+                    if isinstance(reset_result.get("observation"), dict):
+                        observation = _as_dict(reset_result.get("observation"))
+                        done = bool(reset_result.get("done", False))
+                        last_reward = float(reset_result.get("reward", 0.0) or 0.0)
+                    else:
+                        observation = _as_dict(reset_result)
+                        done = bool(observation.get("done", False))
+                        last_reward = float(observation.get("reward", 0.0) or 0.0)
+
+                    episode_state = _as_dict(observation.get("episode"))
+                    initial_items = max(1, _safe_int(episode_state.get("items_left"), 0))
+
+                    while not done and episode_steps < max_steps_per_episode:
+                        step_counter += 1
+                        episode_steps += 1
+
+                        user_prompt = build_user_prompt(
+                            observation=observation,
+                            history=history,
+                            last_reward=last_reward,
+                            episode_index=episode_index,
+                            episodes_total=episodes_for_current_task,
+                        )
+
+                        fallback_action = build_fallback_action(observation, default_task=current_task)
+                        model_action = get_model_action(
+                            client=llm_client,
+                            model_name=model_name,
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt,
+                            fallback_action=fallback_action,
+                            llm_enabled=llm_enabled,
+                        )
+                        env_action = _to_env_action(model_action)
+
+                        step_result = env_client.step(env_action)
+                        observation = _as_dict(step_result.get("observation"))
+
+                        reward = float(step_result.get("reward", 0.0) or 0.0)
+                        done = bool(step_result.get("done", False))
+                        error = _extract_error(observation)
+
+                        episode_total_reward += reward
+                        last_reward = reward
+
+                        history.append(
+                            {
+                                "decision": model_action.get("decision", ""),
+                                "policy_label": model_action.get("policy_label", ""),
+                                "reward": reward,
+                            }
+                        )
+
+                        log_step(
+                            step=step_counter,
+                            action=safe_action_to_string(env_action),
+                            reward=reward,
+                            done=done,
+                            error=error,
+                        )
+
+                except Exception as exc:
+                    episode_failed = True
+                    step_counter += 1
+                    log_step(
+                        step=step_counter,
+                        action=(
+                            '{"type":"submit_decision","decision":"allow",'
+                            '"policy_label":"safe","confidence":0.5,'
+                            '"rationale":"episode_error_fallback"}'
+                        ),
+                        reward=0.0,
+                        done=True,
+                        error=str(exc),
+                    )
+
+                score_items = max(1, initial_items if initial_items > 0 else episode_steps)
+                episode_score = SCORE_EPS if episode_failed else normalize_score(
+                    total_reward=episode_total_reward,
+                    num_items=score_items,
+                )
+                episode_scores.append(episode_score)
+
+            episodes_run = max(1, len(episode_scores))
+            task_mean_score = sum(episode_scores) / episodes_run
+            task_success = task_mean_score >= 0.5
+            log_end(
+                success=task_success,
+                steps=step_counter,
+                score=task_mean_score,
+                rewards=episode_scores,
+            )
 
     finally:
         env_client.close()
-
-    episodes_run = max(1, len(episode_scores))
-    mean_score = sum(episode_scores) / episodes_run
-    success = mean_score >= 0.5
-
-    # Keep score as global mean, and expose grader-style normalized values in `rewards`.
-    # When evaluating across tasks, emit per-task mean scores to align with task-level validators.
-    if len(selected_tasks) > 1:
-        rewards_for_end = [
-            sum(task_scores.get(task_name, [SCORE_EPS])) / max(1, len(task_scores.get(task_name, [])))
-            for task_name in selected_tasks
-        ]
-    else:
-        rewards_for_end = list(episode_scores)
-
-    log_end(success=success, steps=total_steps, score=mean_score, rewards=rewards_for_end)
 
 
 if __name__ == "__main__":
