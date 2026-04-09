@@ -1,6 +1,6 @@
 ---
 title: Content Moderation Environment Server
-emoji: shield
+emoji: 🛡️
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -235,6 +235,7 @@ Inference behavior:
 - If first model output is malformed, performs one deterministic JSON repair retry before fallback.
 - Uses task-aware deterministic fallback policy when model output is still invalid.
 - Runs multiple episodes and reports mean normalized score in `[END]`.
+- In `CONTENT_MODERATION_TASK=all` mode, emits separate `[START] ... [END]` blocks for `easy`, `medium`, and `hard`.
 
 Expected environment variables:
 - `API_BASE_URL`
