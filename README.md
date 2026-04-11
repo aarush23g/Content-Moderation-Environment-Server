@@ -2,7 +2,7 @@
 title: Content Moderation Environment Server
 emoji: 🛡️
 colorFrom: blue
-colorTo: green
+colorTo: green  
 sdk: docker
 pinned: false
 app_port: 8000
@@ -11,7 +11,7 @@ tags:
   - openenv
   - content-moderation
   - reinforcement-learning
-  - fastapif
+  - fastapi
 ---
 
 # Content Moderation Policy Compliance Environment (OpenEnv 0.2.x)
@@ -124,6 +124,18 @@ Additional shaping:
 - `submit_decision` advances the episode.
 - Raw rewards are training signals and may be negative; final evaluation score is normalized to `[0,1]`.
 
+## Baseline Agent Behavior
+
+- `baselines/random_agent.py`: uniform random moderation decisions and policy labels.
+- `baselines/rule_based_agent.py`: keyword-triggered heuristics with conservative defaults.
+
+Approximate normalized performance (local deterministic fixtures, ~5-10 episodes):
+- Random baseline: around `0.55-0.60` on easy-focused runs.
+- Rule-based baseline: around `0.15-0.25` depending on task mix.
+- Naive LLM prompting baseline: around `0.23` vs random around `0.58`.
+
+These are approximate reference points and may vary slightly by runtime settings.
+
 ## Hackathon Compliance
 
 - OpenEnv 0.2.x manifest is provided (`openenv.yaml`).
@@ -132,6 +144,7 @@ Additional shaping:
 - CPU-only Docker compatible.
 - Validated with `pytest` and `openenv validate`.
 - `inference.py` uses OpenAI client-style invocation and prints `[START]`, `[STEP]`, `[END]`.
+- Designed to run within `2 vCPU / 8 GB RAM`; uses standard Python, FastAPI, and lightweight dependencies.
 
 ## Repository Structure
 
@@ -235,25 +248,28 @@ Inference behavior:
 - If first model output is malformed, performs one deterministic JSON repair retry before fallback.
 - Uses task-aware deterministic fallback policy when model output is still invalid.
 - Runs multiple episodes and reports mean normalized score in `[END]`.
-- In `CONTENT_MODERATION_TASK=all` mode, emits separate `[START] ... [END]` blocks for `easy`, `medium`, and `hard`.
+- With `MULTI_TASK_BLOCKS=1` and `CONTENT_MODERATION_TASK=all`, emits separate `[START] ... [END]` blocks for `easy`, `medium`, and `hard`.
 
 Expected environment variables:
-- `API_BASE_URL`
+- `API_BASE_URL` (default: `https://router.huggingface.co/v1`)
 - `MODEL_NAME`
-- `HF_TOKEN` or `API_KEY`
+- `HF_TOKEN` or `API_KEY` (required: inference raises if both are missing)
 - `IMAGE_NAME` (fallback: `LOCAL_IMAGE_NAME`)
 - `CONTENT_MODERATION_TASK`
   - values: `easy`, `medium`, `hard`, or `all`
-  - default behavior in `inference.py`: `all` (cycles tasks for multi-task grading)
+  - default: `easy` (benchmark/eval scripts can set `all` when needed)
 - `CONTENT_MODERATION_BENCHMARK`
 - `INFERENCE_EPISODES` (optional, default `5`, computes mean score across episodes)
 - `INFERENCE_MAX_STEPS` (optional, default `64`, max steps per episode)
+- `GUIDELINE_MODE` (optional, default `0`, strict single-start/end compatibility mode)
+- `MULTI_TASK_BLOCKS` (optional, default `0`; set `1` for per-task `[START]/[END]` blocks)
 
 Expected stdout trace format:
 - `[START] ...`
 - `[STEP] ...`
 - `[END] ...`
-  - `score` is global mean normalized score in `(0,1)`, and `rewards` contains normalized grader-style values (per-task means when running `all`).
+  - `score` is the normalized summary metric used for grading.
+  - `rewards` are per-episode total raw rewards.
 
 ## Testing
 
@@ -276,6 +292,14 @@ $env:OPENENV_BASE_URL="http://localhost:8000"
 $env:INFERENCE_EPISODES="3"
 python inference.py
 ```
+
+## Common Pitfalls for Submissions
+
+- Keep `inference.py` in the repository root.
+- Provide defaults for `API_BASE_URL` and `MODEL_NAME`.
+- Set `HF_TOKEN` (or `API_KEY`) in the environment; otherwise inference fails fast.
+- Keep `[START]`, `[STEP]`, and `[END]` output formats unchanged.
+- Keep the Hugging Face Space in `Running` state during submission.
 
 ## Troubleshooting
 
