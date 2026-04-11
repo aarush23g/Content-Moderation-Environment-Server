@@ -104,12 +104,15 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str) -> N
     )
 
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+def log_end(success: bool, steps: int, rewards: List[float], score: Optional[float] = None) -> None:
     rewards_blob = ",".join(f"{r:.2f}" for r in rewards)
-    print(
-        f"[END] success={str(success).lower()} steps={steps} "
-        f"score={score:.4f} rewards={rewards_blob}"
-    )
+    if score is None:
+        print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_blob}")
+    else:
+        print(
+            f"[END] success={str(success).lower()} steps={steps} "
+            f"score={score:.4f} rewards={rewards_blob}"
+        )
 
 
 def build_system_prompt() -> str:
@@ -577,6 +580,12 @@ def _clamp01(value: Any) -> float:
     return val
 
 
+def _as_bool(value: Optional[str], default: bool = False) -> bool:
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _episodes_for_task(total_episodes: int, num_tasks: int, task_index: int) -> int:
     if num_tasks <= 0:
         return max(1, total_episodes)
@@ -588,11 +597,18 @@ def _episodes_for_task(total_episodes: int, num_tasks: int, task_index: int) -> 
 
 
 def main() -> None:
-    task = os.getenv("CONTENT_MODERATION_TASK", "all")
+    task = os.getenv("CONTENT_MODERATION_TASK", "easy")
     benchmark = os.getenv("CONTENT_MODERATION_BENCHMARK", ENV_NAME)
     model_name = os.getenv("MODEL_NAME", "gpt-4.1-mini")
-    api_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or ""
-    api_base_url = os.getenv("API_BASE_URL")
+    guideline_mode = _as_bool(os.getenv("GUIDELINE_MODE"), False)
+    multi_task_blocks = _as_bool(os.getenv("MULTI_TASK_BLOCKS"), False)
+    if guideline_mode:
+        multi_task_blocks = False
+
+    api_base_url = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+    api_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
+    if not api_key:
+        raise ValueError("HF_TOKEN (or API_KEY) environment variable is required for LLM inference")
 
     env_base_url = os.getenv("OPENENV_BASE_URL")
     image_name = os.getenv("IMAGE_NAME") or os.getenv("LOCAL_IMAGE_NAME")
@@ -601,8 +617,11 @@ def main() -> None:
     max_steps_per_episode = max(1, _safe_int(os.getenv("INFERENCE_MAX_STEPS"), 64))
 
     selected_tasks = _resolve_requested_tasks(task)
+    if not multi_task_blocks:
+        task_label = task if task in TASK_LEVELS else "all"
+        log_start(task=task_label, env_name=benchmark, model=model_name)
 
-    llm_enabled = bool(api_base_url or api_key)
+    llm_enabled = bool(api_key)
     llm_client: Optional[OpenAI] = None
     if llm_enabled:
         llm_kwargs: Dict[str, Any] = {
@@ -616,18 +635,24 @@ def main() -> None:
 
     env_client = RuntimeEnvClient.create(base_url=env_base_url, image_name=image_name)
     system_prompt = build_system_prompt()
+    global_step_counter = 0
+    global_step_rewards: List[float] = []
+    global_episode_scores: List[float] = []
+    global_episode_raw_totals: List[float] = []
 
     try:
         for task_index, current_task in enumerate(selected_tasks):
-            log_start(task=current_task, env_name=benchmark, model=model_name)
+            if multi_task_blocks:
+                log_start(task=current_task, env_name=benchmark, model=model_name)
 
             episodes_for_current_task = _episodes_for_task(
                 total_episodes=episodes_to_run,
                 num_tasks=len(selected_tasks),
                 task_index=task_index,
             )
-            step_counter = 0
+            task_step_counter = 0
             episode_scores: List[float] = []
+            episode_raw_totals: List[float] = []
 
             for episode_index in range(1, episodes_for_current_task + 1):
                 history: List[Dict[str, Any]] = []
@@ -652,7 +677,8 @@ def main() -> None:
                     initial_items = max(1, _safe_int(episode_state.get("items_left"), 0))
 
                     while not done and episode_steps < max_steps_per_episode:
-                        step_counter += 1
+                        task_step_counter += 1
+                        global_step_counter += 1
                         episode_steps += 1
 
                         user_prompt = build_user_prompt(
@@ -682,6 +708,7 @@ def main() -> None:
                         error = _extract_error(observation)
 
                         episode_total_reward += reward
+                        global_step_rewards.append(reward)
                         last_reward = reward
 
                         history.append(
@@ -693,7 +720,7 @@ def main() -> None:
                         )
 
                         log_step(
-                            step=step_counter,
+                            step=(task_step_counter if multi_task_blocks else global_step_counter),
                             action=safe_action_to_string(env_action),
                             reward=reward,
                             done=done,
@@ -702,9 +729,11 @@ def main() -> None:
 
                 except Exception as exc:
                     episode_failed = True
-                    step_counter += 1
+                    task_step_counter += 1
+                    global_step_counter += 1
+                    global_step_rewards.append(0.0)
                     log_step(
-                        step=step_counter,
+                        step=(task_step_counter if multi_task_blocks else global_step_counter),
                         action=(
                             '{"type":"submit_decision","decision":"allow",'
                             '"policy_label":"safe","confidence":0.5,'
@@ -721,16 +750,34 @@ def main() -> None:
                     num_items=score_items,
                 )
                 episode_scores.append(episode_score)
+                episode_raw_totals.append(episode_total_reward)
+                global_episode_scores.append(episode_score)
+                global_episode_raw_totals.append(episode_total_reward)
 
-            episodes_run = max(1, len(episode_scores))
-            task_mean_score = sum(episode_scores) / episodes_run
-            task_success = task_mean_score >= 0.5
-            log_end(
-                success=task_success,
-                steps=step_counter,
-                score=task_mean_score,
-                rewards=episode_scores,
-            )
+            if multi_task_blocks:
+                episodes_run = max(1, len(episode_scores))
+                task_mean_score = sum(episode_scores) / episodes_run
+                task_success = task_mean_score >= 0.5
+                log_end(
+                    success=task_success,
+                    steps=task_step_counter,
+                    rewards=episode_raw_totals,
+                    score=task_mean_score,
+                )
+
+        if not multi_task_blocks:
+            episodes_run = max(1, len(global_episode_scores))
+            mean_score = sum(global_episode_scores) / episodes_run
+            success = mean_score >= 0.5
+            if guideline_mode:
+                log_end(success=success, steps=global_step_counter, rewards=global_step_rewards)
+            else:
+                log_end(
+                    success=success,
+                    steps=global_step_counter,
+                    rewards=global_episode_raw_totals,
+                    score=mean_score,
+                )
 
     finally:
         env_client.close()
