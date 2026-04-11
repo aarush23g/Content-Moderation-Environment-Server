@@ -252,7 +252,7 @@ Inference behavior:
 
 Expected environment variables:
 - `API_BASE_URL` (default: `https://router.huggingface.co/v1`)
-- `MODEL_NAME`
+- `MODEL_NAME` (default: `gpt-4.1-mini`)
 - `HF_TOKEN` or `API_KEY` (required: inference raises if both are missing)
 - `IMAGE_NAME` (fallback: `LOCAL_IMAGE_NAME`)
 - `CONTENT_MODERATION_TASK`
