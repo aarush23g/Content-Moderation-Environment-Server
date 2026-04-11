@@ -257,19 +257,19 @@ Expected environment variables:
 - `IMAGE_NAME` (fallback: `LOCAL_IMAGE_NAME`)
 - `CONTENT_MODERATION_TASK`
   - values: `easy`, `medium`, `hard`, or `all`
-  - default: `easy` (benchmark/eval scripts can set `all` when needed)
+  - default: `all` (submission-safe; evaluates `easy`, `medium`, `hard`)
 - `CONTENT_MODERATION_BENCHMARK`
 - `INFERENCE_EPISODES` (optional, default `5`, computes mean score across episodes)
 - `INFERENCE_MAX_STEPS` (optional, default `64`, max steps per episode)
 - `GUIDELINE_MODE` (optional, default `0`, strict single-start/end compatibility mode)
-- `MULTI_TASK_BLOCKS` (optional, default `0`; set `1` for per-task `[START]/[END]` blocks)
+- `MULTI_TASK_BLOCKS` (optional; when unset, defaults to `1` if multiple tasks are selected, else `0`)
 
 Expected stdout trace format:
 - `[START] ...`
 - `[STEP] ...`
 - `[END] ...`
   - `score` is the normalized summary metric used for grading.
-  - `rewards` are per-episode total raw rewards.
+  - `rewards` are normalized scores in `(0,1)` for task/episode aggregates.
 
 ## Testing
 
