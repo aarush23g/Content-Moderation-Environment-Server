@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Any, Dict, Optional
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import RedirectResponse, Response
 from openenv.core.env_server import create_app
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from server.environment import ModerationEnvironment
 
@@ -30,6 +31,38 @@ class APIAction(BaseModel):
     policy_id: Optional[str] = None
     text: Optional[str] = None
     task_id: Optional[str] = None
+
+    @field_validator("policy_refs", mode="before")
+    @classmethod
+    def _coerce_policy_refs(cls, value: Any) -> Optional[list[str]]:
+        if value is None:
+            return None
+        if isinstance(value, list):
+            return [str(item) for item in value if str(item).strip()]
+        if isinstance(value, str):
+            token = value.strip()
+            if not token:
+                return None
+            if token.startswith("["):
+                try:
+                    parsed = json.loads(token)
+                    if isinstance(parsed, list):
+                        return [str(item) for item in parsed if str(item).strip()]
+                except Exception:
+                    pass
+            if "," in token:
+                return [part.strip() for part in token.split(",") if part.strip()]
+            return [token]
+        return value
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _coerce_confidence(cls, value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return float(value)
 
 
 class APIPost(BaseModel):
