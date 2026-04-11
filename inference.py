@@ -105,7 +105,7 @@ def log_step(step: int, action: str, reward: float, done: bool, error: str) -> N
 
 
 def log_end(success: bool, steps: int, rewards: List[float], score: Optional[float] = None) -> None:
-    rewards_blob = ",".join(f"{r:.2f}" for r in rewards)
+    rewards_blob = ",".join(f"{r:.4f}" for r in rewards)
     if score is None:
         print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_blob}")
     else:
@@ -597,13 +597,12 @@ def _episodes_for_task(total_episodes: int, num_tasks: int, task_index: int) -> 
 
 
 def main() -> None:
-    task = os.getenv("CONTENT_MODERATION_TASK", "easy")
+    task_env = os.getenv("CONTENT_MODERATION_TASK")
+    task = task_env if task_env is not None else "all"
     benchmark = os.getenv("CONTENT_MODERATION_BENCHMARK", ENV_NAME)
     model_name = os.getenv("MODEL_NAME", "gpt-4.1-mini")
     guideline_mode = _as_bool(os.getenv("GUIDELINE_MODE"), False)
-    multi_task_blocks = _as_bool(os.getenv("MULTI_TASK_BLOCKS"), False)
-    if guideline_mode:
-        multi_task_blocks = False
+    multi_task_blocks_env = os.getenv("MULTI_TASK_BLOCKS")
 
     api_base_url = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
     api_key = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
@@ -617,6 +616,14 @@ def main() -> None:
     max_steps_per_episode = max(1, _safe_int(os.getenv("INFERENCE_MAX_STEPS"), 64))
 
     selected_tasks = _resolve_requested_tasks(task)
+    if guideline_mode:
+        multi_task_blocks = False
+    elif multi_task_blocks_env is None:
+        # Submission-safe default: when evaluating multiple tasks, emit one START/END block per task.
+        multi_task_blocks = len(selected_tasks) > 1
+    else:
+        multi_task_blocks = _as_bool(multi_task_blocks_env, False)
+
     if not multi_task_blocks:
         task_label = task if task in TASK_LEVELS else "all"
         log_start(task=task_label, env_name=benchmark, model=model_name)
@@ -639,6 +646,7 @@ def main() -> None:
     global_step_rewards: List[float] = []
     global_episode_scores: List[float] = []
     global_episode_raw_totals: List[float] = []
+    global_task_scores: List[float] = []
 
     try:
         for task_index, current_task in enumerate(selected_tasks):
@@ -758,24 +766,29 @@ def main() -> None:
                 episodes_run = max(1, len(episode_scores))
                 task_mean_score = sum(episode_scores) / episodes_run
                 task_success = task_mean_score >= 0.5
+                global_task_scores.append(task_mean_score)
                 log_end(
                     success=task_success,
                     steps=task_step_counter,
-                    rewards=episode_raw_totals,
+                    rewards=episode_scores,
                     score=task_mean_score,
                 )
+            else:
+                episodes_run = max(1, len(episode_scores))
+                global_task_scores.append(sum(episode_scores) / episodes_run)
 
         if not multi_task_blocks:
             episodes_run = max(1, len(global_episode_scores))
             mean_score = sum(global_episode_scores) / episodes_run
             success = mean_score >= 0.5
+            rewards_for_end = global_task_scores if global_task_scores else [mean_score]
             if guideline_mode:
-                log_end(success=success, steps=global_step_counter, rewards=global_step_rewards)
+                log_end(success=success, steps=global_step_counter, rewards=rewards_for_end)
             else:
                 log_end(
                     success=success,
                     steps=global_step_counter,
-                    rewards=global_episode_raw_totals,
+                    rewards=rewards_for_end,
                     score=mean_score,
                 )
 
